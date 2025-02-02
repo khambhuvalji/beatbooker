@@ -2,14 +2,28 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/userModel");
 const Singer = require("../models/singerModel");
-const Appointment=require("../models/appointmentModel");
+const Appointment = require("../models/appointmentModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const authMiddleware = require("../middlewares/authMiddleware")
+const authMiddleware = require("../middlewares/authMiddleware");
+const { uploadImageOnCloudinary } = require("../middlewares/cloudinaryHelper");
+const { upload } = require("../middlewares/multerMiddleware");
+const multer=require("multer")
 
 
-router.post('/register', async (req, res) => {
+router.post('/register',upload.single("profilePicture"), async (req, res) => {
     try {
+        const picture=req.file?.fieldname;
+        const picturePath=req.file?.path;
+        const {name,email,password,phoneNumber,address}=req.body;
+
+        if(!name || !email || !password || !phoneNumber || !address || !picture || !picturePath){
+            return res.status(400).send({
+                success:false,
+                message:"All fields are required"
+            })
+        }
+
         const userExist = await User.findOne({ email: req.body.email });
         if (userExist) {
             return res.status(200).send({
@@ -18,15 +32,37 @@ router.post('/register', async (req, res) => {
             })
         }
 
-        const password = req.body.password;
+        const password1 = req.body.password;
 
         const salt = await bcrypt.genSalt(10);
 
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = await bcrypt.hash(password1, salt);
 
         req.body.password = hashedPassword;
 
-        const newuser = await User(req.body);
+        const {secure_url,public_id}=await uploadImageOnCloudinary(picturePath,"images");
+
+        if(!secure_url){
+            return res.status(400).send({
+                success:false,
+                message:"Error while uploading image",
+                error:secure_url
+            })
+        }
+
+
+        // const newuser = await User(req.body);
+        const newuser = await User({
+            name,
+            email,
+            password,
+            phoneNumber,
+            address,
+            profilePicture:{
+                secure_url,
+                public_id
+            }
+        });
         await newuser.save();
 
         res.status(200).send({
@@ -105,10 +141,44 @@ router.post('/get-user-info-by-id', authMiddleware, async (req, res) => {
 
 })
 
-router.post('/apply-singer-account', authMiddleware, async (req, res) => {
+router.post('/apply-singer-account',upload.single("profilePicture"),authMiddleware, async (req, res) => {
     try {
-        const newsinger = await Singer({ ...req.body, status: "pending" });
-        await newsinger.save();
+        const picture=req.file?.fieldname;
+        const picturePath=req.file?.path;
+        const {userId,firstName,lastName,phoneNumber,address,experience,feePerCunsultation}=req.body;
+
+        if(!userId || !firstName || !lastName || !phoneNumber || !address || !experience || !feePerCunsultation || !picture || !picturePath){
+            return res.status(400).send({
+                success:false,
+                message:"All fields are required"
+            })
+        }
+
+
+        const {secure_url,public_id}=await uploadImageOnCloudinary(picturePath,"images");
+
+        if(!secure_url){
+            return res.status(400).send({
+                success:false,
+                message:"Error while uploading image",
+                error:secure_url
+            })
+        }
+
+        const newsinger=await Singer.create({
+            userId,
+            firstName,
+            lastName,
+            profilePicture:{
+                secure_url,
+                public_id
+            },
+            phoneNumber,
+            address,
+            experience,
+            feePerCunsultation,
+            status:"pending"
+        });
 
         const adminuser = await User.findOne({ isAdmin: true });
         const unseenNotifications = adminuser.unseenNotifications;
@@ -124,9 +194,11 @@ router.post('/apply-singer-account', authMiddleware, async (req, res) => {
         await adminuser.save();
         res.status(200).send({
             success: true,
-            message: "Singer account applied successfully"
+            message: "Singer account applied successfully",
+            data:newsinger
         })
     } catch (error) {
+        console.log(error) 
         res.status(500).send({
             success: false,
             message: "Error applying singer account"
@@ -180,43 +252,78 @@ router.post('/delete-all-notifications', authMiddleware, async (req, res) => {
 
 })
 
-router.get('/get-all-approved-singers',authMiddleware,async(req,res)=>{
+router.get('/get-all-approved-singers', authMiddleware, async (req, res) => {
     try {
-        const singers=await Singer.find({status:"approved"});
+        const singers = await Singer.find({ status: "approved" });
 
         res.status(200).send({
-            success:true,
-            message:"All approved doctor fetched successfully",
-            data:singers
+            success: true,
+            message: "All approved singer fetched successfully",
+            data: singers
         })
     } catch (error) {
         res.status(500).send({
-            success:false,
-            message:"Error in fetched approve doctor"
+            success: false,
+            message: "Error in fetched approve singer"
         })
     }
 })
 
-router.post('/book-appointment',authMiddleware,async(req,res)=>{
+router.post('/book-appointment', authMiddleware, async (req, res) => {
     try {
-        req.body.status="pending";
-        const newAppointment=await Appointment(req.body);
+        req.body.status = "pending";
+        req.body.date = moment(req.body.date, "DD-MM-YYYY").toISOString();
+        req.body.time = moment(req.body.time, "HH:mm").toISOString();
+        const newAppointment = await Appointment(req.body);
         await newAppointment.save();
 
-        const user=await User.findOne({_id:req.body.singerInfo.userId});
+        const user = await User.findOne({ _id: req.body.singerInfo.userId });
         user.unseenNotifications.push({
-            type:"new-appointment-request",
-            message:`A new appointment request has been made by ${req.body.userInfo.name}`,
-            onClickPath:"/singer/appointments"
+            type: "new-appointment-request",
+            message: `A new appointment request has been made by ${req.body.userInfo.name}`,
+            onClickPath: "/singer/appointments"
         })
 
         await user.save();
 
         res.status(200).send({
-            success:true,
-            message:"Book appointment successfully"
+            success: true,
+            message: "Book appointment successfully"
         })
 
+    } catch (error) {
+        res.status(500).send({
+            message: "Error booking appointment",
+            success: false
+        })
+    }
+})
+
+router.post("/check-booking-availability", authMiddleware, async (req, res) => {
+    try {
+        const date = moment(req.body.date, "DD-MM-YYYY").toISOString();
+        const fromTime = moment(req.body.time, "HH:mm").substrct(8, 'hours').toISOString();
+        const toTime = moment(req.body.time, "HH:mm").add(8, 'hours').toISOString();
+
+        const singerId = req.body.singerId;
+        const appointments = await Appointment.find({
+            doctorId,
+            date,
+            time: { $gte: fromTime, $lte: toTime }
+        })
+
+        if (appointments.length > 0) {
+            return res.status(200).send({
+                message: "Appointments not available",
+                success: false
+            })
+        }
+        else {
+            return res.status(200).send({
+                message: "Appointments available",
+                success: true
+            })
+        }
     } catch (error) {
         res.status(500).send({
             message:"Error booking appointment",
@@ -225,6 +332,49 @@ router.post('/book-appointment',authMiddleware,async(req,res)=>{
     }
 })
 
+router.get("/get-appointments-by-user-id",authMiddleware,async(req,res)=>{
+    try {
+        const appointments=await Appointment.find({userId:req.body.userId});
+
+        res.status(200).send({
+            success:true,
+            message:"Appointments fetched successfully",
+            data:appointments
+        })
+
+    } catch (error) {
+        res.status(500).send({
+            message:"Error fetching appointments",
+            success:false
+        })
+    }
+})
+
+router.get("/search-singers/:key",authMiddleware,async(req,res)=>{
+    try {
+        const search=req.params.key;
+
+        const singer=await Singer.find({
+            "$or":[
+                {"firstName":{$regex:req.params.key}},
+                {"lastName":{$regex:req.params.key}},
+                {"address":{$regex:req.params.key}},
+                {"feePerCunsultation":{$regex:req.params.key}},
+            ]
+        })
+
+        res.status(200).send({
+            success:true,
+            data:singer
+        })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({
+            success:false,
+            message:"Error in search singers"
+        })
+    }
+})
 
 
 

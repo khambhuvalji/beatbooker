@@ -13,6 +13,16 @@ const singerSchema=new mongoose.Schema({
         type:String,
         required:true
     },
+    profilePicture:{
+        secure_url:{
+            type:String,
+            required:true
+        },
+        public_id:{
+            type:String,
+            required:true
+        }
+    },
     phoneNumber:{
         type:String,
         required:true
@@ -29,10 +39,11 @@ const singerSchema=new mongoose.Schema({
         type:String,
         required:true
     },
-    posts:{
+    videos:[{
         type:Array,
-        default:[]
-    },
+        required:true,
+        length:4
+    }],
     messages:{
         type:Array,
         default:[]

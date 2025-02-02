@@ -2,7 +2,13 @@ const express=require("express");
 const app=express();
 require('dotenv').config()
 const dbConfig=require('./config/dbConfig')
+const cors=require("cors");
+const bodyParser=require("body-parser");
 app.use(express.json())
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended:true}));
+
 const userRoute=require("./routes/userRoute");
 const singerRoute=require("./routes/singerRoute")
 const adminRoute=require("./routes/adminRoute")

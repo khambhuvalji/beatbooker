@@ -13,9 +13,23 @@ const userSchema=new mongoose.Schema({
         type:String,
         required:true
     },
-    isAdmin:{
-        type:Boolean,
-        default:false
+    phoneNumber:{
+        type:String,
+        required:true
+    },
+    address:{
+        type:String,
+        required:true
+    },
+    profilePicture:{
+        secure_url:{
+            type:String,
+            required:true
+        },
+        public_id:{
+            type:String,
+            required:true
+        }
     },
     isSinger:{
         type:Boolean,
@@ -26,6 +40,10 @@ const userSchema=new mongoose.Schema({
         default:[]
     },
     unseenNotifications:{
+        type:Array,
+        default:[]
+    },
+    message:{
         type:Array,
         default:[]
     }

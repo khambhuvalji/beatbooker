@@ -16,7 +16,7 @@ router.get("/get-all-singers", authMiddleware, async (req, res) => {
     } catch (error) {
         res.status(500).send({
             success:false,
-            message:"Error in fetched doctors",
+            message:"Error in fetched singers",
             error
         })
     }
@@ -62,7 +62,7 @@ router.post("/change-singer-account-status",authMiddleware,async(req,res)=>{
             success:true,
             message:"Singer account status updated successfully",
             data:singer
-        })
+        }) 
     } catch (error) {
         console.log(error.message)
         res.status(500).send({
