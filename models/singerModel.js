@@ -1,58 +1,77 @@
-const mongoose=require("mongoose");
+const mongoose = require("mongoose");
+const validator=require("validator")
 
-const singerSchema=new mongoose.Schema({
-    userId:{
-        type:String,
-        required:true
+const singerSchema = new mongoose.Schema({
+    // userId:{
+    //     type:String,
+    //     required:true
+    // },
+    name: {
+        type: String,
+        required: true,
     },
-    firstName:{
-        type:String,
-        required:true
-    },
-    lastName:{
-        type:String,
-        required:true
-    },
-    profilePicture:{
-        secure_url:{
-            type:String,
-            required:true
-        },
-        public_id:{
-            type:String,
-            required:true
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+        validate: (value) => {
+            if (!validator.isEmail(value)) {
+                throw Error("Email is not in proper format")
+            }
         }
     },
-    phoneNumber:{
+    password:{
         type:String,
         required:true
     },
-    address:{
-        type:String,
-        required:true
+    firstName: {
+        type: String,
+        default:""
     },
-    experience:{
-        type:String,
-        required:true
+    lastName: {
+        type: String,
+        default:""
     },
-    feePerCunsultation:{
-        type:String,
-        required:true
+    profilePicture: {
+        secure_url: {
+            type: String,
+            default:""
+        },
+        public_id: {
+            type: String,
+            default:""
+        }
     },
-    videos:[{
-        type:Array,
-        required:true,
-        length:4
+    phoneNumber: {
+        type: String,
+        default:""
+    },
+    address: {
+        type: String,
+        default:""
+    },
+    experience: {
+        type: String,
+        default:""
+    },
+    feePerCunsultation: {
+        type: String,
+        default:""
+    },
+    videos: [{
+        type: Array,
+        required: true,
+        length: 4
     }],
-    messages:{
-        type:Array,
-        default:[]
+    messages: {
+        type: Array,
+        default: []
     },
-    status:{
-        type:String,
-        default:"pending"
+    status: {
+        type: String,
+        default: "pending"
     }
-},{timestamps:true})
+}, { timestamps: true })
 
-const singerModel=mongoose.model("singers",singerSchema);
-module.exports=singerModel;
+const singerModel = mongoose.model("singers", singerSchema);
+module.exports = singerModel;

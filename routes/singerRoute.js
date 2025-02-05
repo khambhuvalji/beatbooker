@@ -4,31 +4,101 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const Singer = require("../models/singerModel");
 const Appointment = require("../models/appointmentModel");
 const User = require("../models/userModel");
+const Admin=require("../models/adminModel")
 const { upload } = require("../middlewares/multerMiddleware");
 const { uploadImageOnCloudinary, deleteImageOnCloudinary, cloudinary, deleteVideoOnCloudinary } = require("../middlewares/cloudinaryHelper");
 const multer = require("multer");
 const { uploada } = require("../middlewares/cloudinaryHelper")
-const DatauriParser = require('datauri/parser');
-const parser = new DatauriParser();
-const pathWithNullBytes = "\x00\x00some/path";
-const cleanedPath = pathWithNullBytes.replace(/\x00/g, '');
+const bcrypt=require("bcrypt")
+const jwt=require("jsonwebtoken")
 
 
-router.post("/get-singer-info-by-user-id", authMiddleware, async (req, res) => {
+router.post('/register', async (req, res) => {
     try {
-        const singer = await Singer.findOne({ userId: req.body.userId });
+        const name=req.body.name;
+        const email=req.body.email;
+        const password = req.body.password;
+
+
+        if(!name || !email || !password){
+            return res.status(400).send({
+                success:false,
+                message:"All fields are required"
+            })
+        }
+
+        const singerExist = await Singer.findOne({ email: req.body.email });
+        if (singerExist) {
+            return res.status(200).send({
+                message: "User already exist",
+                success: false
+            })
+        }
+
+        const salt = await bcrypt.genSalt(10);
+
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // const newuser = await User(req.body);
+        const newsinger = await Singer({
+            name,
+            email,
+            password:hashedPassword
+        });
+        await newsinger.save();
+
         res.status(200).send({
-            message: "Singer info fetched successfully",
-            success: true,
-            data: singer
+            message: "Singer created successfully",
+            success: true
         })
     } catch (error) {
+        console.log(error)
         res.status(500).send({
-            message: "Error getting singer info",
+            message: "Error user creating",
+            success: false
+        })
+    }
+})
+
+router.post('/login', async (req, res) => {
+    try {
+        const singer = await Singer.findOne({ email: req.body.email });
+        if (!singer) {
+            return res.status(200).send({
+                message: "User does not exist",
+                success: false
+            })
+        }
+
+        const isMatch = await bcrypt.compare(req.body.password, singer.password);
+
+        if (!isMatch) {
+            return res.status(200).send({
+                message: "Password is incorrent",
+                success: false
+            })
+        }
+
+        const token = jwt.sign({ id: singer._id }, process.env.JWT_SECRET, { expiresIn: '1y' })
+
+        res.cookie("jwt",token,{
+            httpOnly:true
+        })
+
+        res.status(200).send({
+            message: "Login successfully",
+            success: true,
+            data: token
+        })
+    } catch (error) {
+        console.log(error.message)
+        res.status(500).send({
+            message: "Error in login",
             success: false,
             error
         })
     }
+
 })
 
 router.post("/get-singer-info-by-id", authMiddleware, async (req, res) => {
@@ -47,12 +117,12 @@ router.post("/get-singer-info-by-id", authMiddleware, async (req, res) => {
     }
 })
 
-router.post("/update-singer-profile", upload.single("profilePicture"), authMiddleware, async (req, res) => {
+router.post("/update-singer-profile",authMiddleware,upload.single("profilePicture"), async (req, res) => {
     try {
         const picturePath = req.file?.path;
-        const { userId, firstName, lastName, phoneNumber, address, experience, feePerCunsultation } = req.body;
+        const { firstName, lastName, phoneNumber, address, experience, feePerCunsultation } = req.body;
 
-        const singer = await Singer.findOne({ userId: req.body.userId });
+        const singer = await Singer.findOne({ _id: req.body.singerId });
 
         if (!singer) {
             return res.status(404).send({
@@ -103,7 +173,7 @@ router.post("/singer-post-videos", uploada.array("videos", 5), authMiddleware, a
         const videos = req.files;
         const videosa = [];
 
-        const singer = await Singer.findOne({ userId: req.body.userId });
+        const singer = await Singer.findOne({ _id: req.body.singerId });
 
         if (!singer) {
             return res.status(404).send({
@@ -213,7 +283,7 @@ router.post('/singer-delete-video',authMiddleware,uploadb.single('videos'),async
 
 router.get("/get-appointments-by-singer-id", authMiddleware, async (req, res) => {
     try {
-        const singer = await Singer.findOne({ userId: req.body.userId });
+        const singer = await Singer.findOne({ _id: req.body.singerId });
         const appointments = await Appointment.find({ singerId: singer._id });
 
         res.status(200).send({
@@ -237,14 +307,14 @@ router.post("/change-appointment-status", authMiddleware, async (req, res) => {
             status
         });
 
-        const user = await User.findOne({ _id: appointment.userId });
-        const unseenNotifications = user.unseenNotifications;
-        unseenNotifications.push({
-            type: "appointment-status-changed",
-            message: `Your appointment status has been ${status}`,
-            onClickPath: "/appointments"
-        })
-        await user.save();
+        // const user = await User.findOne({ _id: appointment.userId });
+        // const unseenNotifications = user.unseenNotifications;
+        // unseenNotifications.push({
+        //     type: "appointment-status-changed",
+        //     message: `Your appointment status has been ${status}`,
+        //     onClickPath: "/appointments"
+        // })
+        // await user.save();
 
         res.status(200).send({
             success: true,

@@ -3,21 +3,23 @@ const router = express.Router();
 const User = require("../models/userModel");
 const Singer = require("../models/singerModel");
 const Appointment = require("../models/appointmentModel");
+const Admin=require("../models/adminModel")
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const authMiddleware = require("../middlewares/authMiddleware");
-const { uploadImageOnCloudinary } = require("../middlewares/cloudinaryHelper");
+const { uploadImageOnCloudinary, deleteImageOnCloudinary } = require("../middlewares/cloudinaryHelper");
 const { upload } = require("../middlewares/multerMiddleware");
 const multer=require("multer")
 
 
-router.post('/register',upload.single("profilePicture"), async (req, res) => {
+router.post('/register', async (req, res) => {
     try {
-        const picture=req.file?.fieldname;
-        const picturePath=req.file?.path;
-        const {name,email,password,phoneNumber,address}=req.body;
+        const name=req.body.name;
+        const email=req.body.email;
+        const password = req.body.password;
 
-        if(!name || !email || !password || !phoneNumber || !address || !picture || !picturePath){
+
+        if(!name || !email || !password){
             return res.status(400).send({
                 success:false,
                 message:"All fields are required"
@@ -32,36 +34,15 @@ router.post('/register',upload.single("profilePicture"), async (req, res) => {
             })
         }
 
-        const password1 = req.body.password;
-
         const salt = await bcrypt.genSalt(10);
 
-        const hashedPassword = await bcrypt.hash(password1, salt);
-
-        req.body.password = hashedPassword;
-
-        const {secure_url,public_id}=await uploadImageOnCloudinary(picturePath,"images");
-
-        if(!secure_url){
-            return res.status(400).send({
-                success:false,
-                message:"Error while uploading image",
-                error:secure_url
-            })
-        }
-
+        const hashedPassword = await bcrypt.hash(password, salt);
 
         // const newuser = await User(req.body);
         const newuser = await User({
             name,
             email,
-            password,
-            phoneNumber,
-            address,
-            profilePicture:{
-                secure_url,
-                public_id
-            }
+            password:hashedPassword
         });
         await newuser.save();
 
@@ -70,6 +51,7 @@ router.post('/register',upload.single("profilePicture"), async (req, res) => {
             success: true
         })
     } catch (error) {
+        console.log(error)
         res.status(500).send({
             message: "Error user creating",
             success: false
@@ -98,6 +80,10 @@ router.post('/login', async (req, res) => {
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1y' })
 
+        res.cookie("jwt",token,{
+            httpOnly:true
+        })
+
         res.status(200).send({
             message: "Login successfully",
             success: true,
@@ -112,6 +98,54 @@ router.post('/login', async (req, res) => {
         })
     }
 
+})
+
+router.post("/update-user-profile",authMiddleware, upload.single("profilePicture"), async (req, res) => {
+    try {
+        const picturePath = req.file?.path;
+        const {name,phoneNumber, address} = req.body;
+
+        const user = await User.findOne({ _id: req.body.userId });
+
+        if (!user) {
+            return res.status(404).send({
+                success: false,
+                message: "User not found"
+            })
+        }
+
+        if (name) user.name = name;
+        if (phoneNumber) user.phoneNumber = phoneNumber;
+        if (address) user.address = address;
+
+        if (picturePath) {
+            const { secure_url, public_id } = await uploadImageOnCloudinary(picturePath, "images");
+
+            if (user.profilePicture && user.profilePicture.public_id) {
+                await deleteImageOnCloudinary(user.profilePicture.public_id)
+            }
+
+
+            user.profilePicture = {
+                secure_url, public_id
+            }
+        }
+
+        await user.save();
+
+        res.status(200).send({
+            success: true,
+            message: "Singer profile updated successfully",
+            data: user
+        })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({
+            success: false,
+            message: "Error in singer profile update",
+            error
+        })
+    }
 })
 
 router.post('/get-user-info-by-id', authMiddleware, async (req, res) => {
@@ -136,117 +170,6 @@ router.post('/get-user-info-by-id', authMiddleware, async (req, res) => {
             message: "Error user info",
             success: false,
             error
-        })
-    }
-
-})
-
-router.post('/apply-singer-account',upload.single("profilePicture"),authMiddleware, async (req, res) => {
-    try {
-        const picture=req.file?.fieldname;
-        const picturePath=req.file?.path;
-        const {userId,firstName,lastName,phoneNumber,address,experience,feePerCunsultation}=req.body;
-
-        if(!userId || !firstName || !lastName || !phoneNumber || !address || !experience || !feePerCunsultation || !picture || !picturePath){
-            return res.status(400).send({
-                success:false,
-                message:"All fields are required"
-            })
-        }
-
-
-        const {secure_url,public_id}=await uploadImageOnCloudinary(picturePath,"images");
-
-        if(!secure_url){
-            return res.status(400).send({
-                success:false,
-                message:"Error while uploading image",
-                error:secure_url
-            })
-        }
-
-        const newsinger=await Singer.create({
-            userId,
-            firstName,
-            lastName,
-            profilePicture:{
-                secure_url,
-                public_id
-            },
-            phoneNumber,
-            address,
-            experience,
-            feePerCunsultation,
-            status:"pending"
-        });
-
-        const adminuser = await User.findOne({ isAdmin: true });
-        const unseenNotifications = adminuser.unseenNotifications;
-        unseenNotifications.push({
-            type: "new-singer-request",
-            message: `${newsinger.firstName} ${newsinger.lastName} has applied for a singer account`,
-            data: {
-                singerId: newsinger._id,
-                name: newsinger.firstName + " " + newsinger.lastName
-            },
-            onClickPath: '/admin/singerlist'
-        })
-        await adminuser.save();
-        res.status(200).send({
-            success: true,
-            message: "Singer account applied successfully",
-            data:newsinger
-        })
-    } catch (error) {
-        console.log(error) 
-        res.status(500).send({
-            success: false,
-            message: "Error applying singer account"
-        })
-    }
-})
-
-router.post('/mark-all-notifications-as-seen', authMiddleware, async (req, res) => {
-    try {
-        const user = await User.findOne({ _id: req.body.userId });
-        const unseenNotifications = user.unseenNotifications;
-        const seenNotifications = user.seenNotifications;
-        user.seenNotifications.push(...unseenNotifications);
-        user.unseenNotifications = [];
-        user.seenNotifications = seenNotifications;
-        const updatedUser = await user.save();
-        updatedUser.password = undefined;
-
-        res.status(200).send({
-            success: true,
-            message: "All notifications marked as seen",
-            data: updatedUser
-        })
-    } catch (error) {
-        res.status(500).send({
-            message: "Error in notification seen",
-            success: false
-        })
-    }
-})
-
-router.post('/delete-all-notifications', authMiddleware, async (req, res) => {
-    try {
-        const user = await User.findOne({ _id: req.body.userId });
-        user.seenNotifications = [];
-        user.unseenNotifications = [];
-        const updatedUser = await user.save();
-        updatedUser.password = undefined;
-
-        res.status(200).send({
-            success: true,
-            message: "Deleted all notifications",
-            data: updatedUser
-        })
-    } catch (error) {
-        res.status(500).send({
-            success: false,
-            message: "Error in delete notifications"
         })
     }
 
@@ -277,14 +200,13 @@ router.post('/book-appointment', authMiddleware, async (req, res) => {
         const newAppointment = await Appointment(req.body);
         await newAppointment.save();
 
-        const user = await User.findOne({ _id: req.body.singerInfo.userId });
-        user.unseenNotifications.push({
-            type: "new-appointment-request",
-            message: `A new appointment request has been made by ${req.body.userInfo.name}`,
-            onClickPath: "/singer/appointments"
-        })
-
-        await user.save();
+        // const user = await User.findOne({ _id: req.body.singerInfo.userId });
+        // user.unseenNotifications.push({
+        //     type: "new-appointment-request",
+        //     message: `A new appointment request has been made by ${req.body.userInfo.name}`,
+        //     onClickPath: "/singer/appointments"
+        // })
+        // await user.save();
 
         res.status(200).send({
             success: true,
