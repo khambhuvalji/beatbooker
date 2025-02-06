@@ -45,10 +45,10 @@ const userSchema=new mongoose.Schema({
             default:""
         }
     },
-    message:{
-        type:Array,
-        default:[]
-    }
+    messages:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"messages"
+    }]
 },{timestamps:true});
 
 const userModel=mongoose.model("users",userSchema);

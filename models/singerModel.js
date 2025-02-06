@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const validator=require("validator")
+const validator = require("validator")
 
 const singerSchema = new mongoose.Schema({
     // userId:{
@@ -20,53 +20,53 @@ const singerSchema = new mongoose.Schema({
             }
         }
     },
-    password:{
-        type:String,
-        required:true
+    password: {
+        type: String,
+        required: true
     },
     firstName: {
         type: String,
-        default:""
+        default: ""
     },
     lastName: {
         type: String,
-        default:""
+        default: ""
     },
     profilePicture: {
         secure_url: {
             type: String,
-            default:""
+            default: ""
         },
         public_id: {
             type: String,
-            default:""
+            default: ""
         }
     },
     phoneNumber: {
         type: String,
-        default:""
+        default: ""
     },
     address: {
         type: String,
-        default:""
+        default: ""
     },
     experience: {
         type: String,
-        default:""
+        default: ""
     },
     feePerCunsultation: {
         type: String,
-        default:""
+        default: ""
     },
     videos: [{
         type: Array,
         required: true,
         length: 4
     }],
-    messages: {
-        type: Array,
-        default: []
-    },
+    messages: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "messages"
+    }],
     status: {
         type: String,
         default: "pending"
