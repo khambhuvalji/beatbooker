@@ -91,9 +91,27 @@ router.post('/login', async (req, res) => {
 
 })
 
-router.get("/get-all-singers", authMiddleware, async (req, res) => {
+router.get("/get-all-pending-singers", authMiddleware, async (req, res) => {
     try {
-        const singers = await Singer.find({});
+        const singers = await Singer.find({status:"pending"});
+
+        res.status(200).send({
+            success: true,
+            message: "singers fetched successfully",
+            data: singers
+        })
+    } catch (error) {
+        res.status(500).send({
+            success:false,
+            message:"Error in fetched singers",
+            error
+        })
+    }
+})
+
+router.get("/get-all-approved-singers", authMiddleware, async (req, res) => {
+    try {
+        const singers = await Singer.find({status:"approved"});
 
         res.status(200).send({
             success: true,
@@ -130,7 +148,7 @@ router.get("/get-all-users",authMiddleware,async(req,res)=>{
 router.post("/change-singer-account-status",authMiddleware,async(req,res)=>{
     try {
         const {singerId,status}=req.body;
-        const singer=await Singer.findOneAndUpdate({_id:singerId},{
+        const singer=await Singer.findByIdAndUpdate(singerId,{
             status
         });
         await singer.save()
@@ -138,6 +156,30 @@ router.post("/change-singer-account-status",authMiddleware,async(req,res)=>{
         res.status(200).send({
             success:true,
             message:"Singer account status updated successfully",
+            data:singer
+        }) 
+    } catch (error) {
+        
+        console.log(error)
+        res.status(500).send({
+            success:false,
+            message:`Error in singer status update ${error.message}`,
+            error
+        })
+    }
+})
+
+router.post("/block-singer-account",authMiddleware,async(req,res)=>{
+    try {
+        const {singerId,status}=req.body;
+        const singer=await Singer.findByIdAndUpdate(singerId,{
+            status
+        });
+        await singer.save()
+
+        res.status(200).send({
+            success:true,
+            message:"Singer account is blocked",
             data:singer
         }) 
     } catch (error) {
