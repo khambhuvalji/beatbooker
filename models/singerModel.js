@@ -58,9 +58,14 @@ const singerSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
+    identifyVideo: [{
+        type: Array,
+        default:[],
+        length: 1
+    }],
     videos: [{
         type: Array,
-        required: true,
+        default:[],
         length: 4
     }],
     messages: [{

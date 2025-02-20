@@ -5,19 +5,40 @@ const Singer = require("../models/singerModel");
 const Appointment = require("../models/appointmentModel");
 const User = require("../models/userModel");
 const Admin=require("../models/adminModel")
-const { upload } = require("../middlewares/multerMiddleware");
-const { uploadImageOnCloudinary, deleteImageOnCloudinary, cloudinary, deleteVideoOnCloudinary } = require("../middlewares/cloudinaryHelper");
+const { upload} = require("../middlewares/multerMiddleware");
+const { uploadImageOnCloudinary, deleteImageOnCloudinary, cloudinary, deleteVideoOnCloudinary, uploadIdentifyVideoOnCloudinary, uploadc } = require("../middlewares/cloudinaryHelper");
 const multer = require("multer");
 const { uploada } = require("../middlewares/cloudinaryHelper")
 const bcrypt=require("bcrypt")
 const jwt=require("jsonwebtoken")
 
 
-router.post('/register', async (req, res) => {
+router.post('/register',uploada.array("identifyVideo",1), async (req, res) => {
     try {
         const name=req.body.name;
         const email=req.body.email;
         const password = req.body.password;
+
+        console.log(req.file)
+
+        const videos = req.files;
+        let response="";
+
+        for (const video of videos) {
+            const result = await cloudinary.uploader.upload(video.path, {
+                resource_type: 'video',
+                folder: "videos"
+            });
+            response=result.secure_url
+        }
+        
+
+        if(!response){
+            return res.status(404).send({
+                success:false,
+                message:"Video not found"
+            })
+        }
 
 
         if(!name || !email || !password){
@@ -30,7 +51,7 @@ router.post('/register', async (req, res) => {
         const singerExist = await Singer.findOne({ email: req.body.email });
         if (singerExist) {
             return res.status(200).send({
-                message: "User already exist",
+                message: "Singer already exist",
                 success: false
             })
         }
@@ -43,9 +64,11 @@ router.post('/register', async (req, res) => {
         const newsinger = await Singer({
             name,
             email,
-            password:hashedPassword
+            password:hashedPassword,
+            identifyVideo:response
         });
         await newsinger.save();
+
 
         res.status(200).send({
             message: "Singer created successfully",
@@ -54,7 +77,7 @@ router.post('/register', async (req, res) => {
     } catch (error) {
         console.log(error)
         res.status(500).send({
-            message: "Error user creating",
+            message: "Error Singer creating",
             success: false
         })
     }
@@ -65,7 +88,7 @@ router.post('/login', async (req, res) => {
         const singer = await Singer.findOne({ email: req.body.email });
         if (!singer) {
             return res.status(200).send({
-                message: "User does not exist",
+                message: "Singer does not exist",
                 success: false
             })
         }

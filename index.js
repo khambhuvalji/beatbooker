@@ -13,12 +13,14 @@ const userRoute=require("./routes/userRoute");
 const singerRoute=require("./routes/singerRoute")
 const adminRoute=require("./routes/adminRoute")
 const messageRoute=require("./routes/messageRoute")
+const reviewRoute=require("./routes/reviewRoute")
 
 
 app.use("/api/user",userRoute);
 app.use("/api/singer",singerRoute);
 app.use("/api/admin",adminRoute);
 app.use("/api/message",messageRoute)
+app.use("/api/review",reviewRoute)
 const port=process.env.PORT || 5000;
 
 app.listen(port,()=>console.log(`Node server started at port ${port}`));

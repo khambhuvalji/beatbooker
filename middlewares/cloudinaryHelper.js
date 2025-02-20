@@ -54,4 +54,8 @@ const deleteVideoOnCloudinary=async(public_id)=>{
     }
 }
 
-module.exports={uploadImageOnCloudinary,deleteImageOnCloudinary,cloudinary,uploada,deleteVideoOnCloudinary}
+const storagec = multer.memoryStorage();
+const uploadc = multer({ storagec: storagec });
+
+
+module.exports={uploadImageOnCloudinary,deleteImageOnCloudinary,cloudinary,uploada,deleteVideoOnCloudinary,uploadc}

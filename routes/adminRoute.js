@@ -169,6 +169,30 @@ router.post("/change-singer-account-status",authMiddleware,async(req,res)=>{
     }
 })
 
+router.post("/reject-singer-account",authMiddleware,async(req,res)=>{
+    try {
+        const {singerId,status}=req.body;
+        const singer=await Singer.findByIdAndUpdate(singerId,{
+            status
+        });
+        await singer.save()
+
+        res.status(200).send({
+            success:true,
+            message:"Singer account rejeted",
+            data:singer
+        }) 
+    } catch (error) {
+        
+        console.log(error)
+        res.status(500).send({
+            success:false,
+            message:`Error in singer status update ${error.message}`,
+            error
+        })
+    }
+})
+
 router.post("/block-singer-account",authMiddleware,async(req,res)=>{
     try {
         const {singerId,status}=req.body;
@@ -188,6 +212,24 @@ router.post("/block-singer-account",authMiddleware,async(req,res)=>{
         res.status(500).send({
             success:false,
             message:`Error in singer status update ${error.message}`,
+            error
+        })
+    }
+})
+
+router.get("/get-all-rejected-singers", authMiddleware, async (req, res) => {
+    try {
+        const singers = await Singer.find({status:"reject"});
+
+        res.status(200).send({
+            success: true,
+            message: "singers fetched successfully",
+            data: singers
+        })
+    } catch (error) {
+        res.status(500).send({
+            success:false,
+            message:"Error in fetched singers",
             error
         })
     }
