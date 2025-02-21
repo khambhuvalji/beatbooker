@@ -29,6 +29,10 @@ const appointmentSchema=new mongoose.Schema({
         type:String,
         required:true
     },
+    cancelBooking:{
+        type:String,
+        required:"No"
+    },
     status:{
         type:String,
         required:true,

@@ -244,10 +244,10 @@ const uploadb=multer({dest:'/upload/videos'})
 
 router.post('/singer-delete-video',authMiddleware,uploadb.single('videos'),async(req,res)=>{
     try {
-        const id=req.body.userId;
+        const id=req.body.singerId;
         const video=req.file;
 
-        const singer = await Singer.findOne({ userId: req.body.userId });
+        const singer = await Singer.findOne({ _id: req.body.singerId });
 
         if (!singer) {
             return res.status(404).send({

@@ -229,7 +229,7 @@ router.post("/check-booking-availability", authMiddleware, async (req, res) => {
 
         const singerId = req.body.singerId;
         const appointments = await Appointment.find({
-            doctorId,
+            singerId,
             date,
             time: { $gte: fromTime, $lte: toTime }
         })
@@ -298,6 +298,40 @@ router.get("/search-singers/:key",authMiddleware,async(req,res)=>{
     }
 })
 
+router.post('/booking-cancel-by-user',authMiddleware,async(req,res)=>{
+    try {
+        
+        const {userId,appointmentId}=req.body; 
+
+        const user=await User.findOne({_id:userId});
+
+        if(user){
+            const appointment=await Appointment.findOne({_id:appointmentId})
+
+            appointment.cancelBooking="yes";
+        
+            await appointment.save()
+
+            res.status(200).send({
+                success:true,
+                message:"Booking calcel request",
+            })
+        }
+        else{
+            res.status(500).send({
+                success:false,
+                message:"User not found",
+            })
+        }
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({
+            message:"Error in booking cancel",
+            success:false
+        })
+    }
+})  
 
 
 module.exports = router;
